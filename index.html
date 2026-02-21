@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard Day Trade</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  background:#0f172a;
+  color:#e5e7eb;
+  font-family: Arial, sans-serif;
+  padding:20px;
+}
+h1,h2,h3 { margin-bottom:10px; }
+
+.cards {
+  display:flex;
+  gap:15px;
+  flex-wrap:wrap;
+  margin-bottom:20px;
+}
+
+.card {
+  background:#1e293b;
+  padding:15px;
+  border-radius:10px;
+  flex:1;
+  min-width:160px;
+  text-align:center;
+}
+
+.card span { font-size:13px; color:#94a3b8; }
+.card strong { font-size:20px; display:block; }
+
+.form-row {
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+
+.form-row > * { flex:1; min-width:130px; }
+
+input, select, textarea {
+  padding:8px;
+  border-radius:6px;
+  border:none;
+}
+
+textarea { resize:vertical; }
+
+button {
+  background:#22c55e;
+  border:none;
+  border-radius:8px;
+  padding:8px 10px;
+  cursor:pointer;
+  font-weight:bold;
+  margin:0 2px;
+}
+
+table {
+  width:100%;
+  border-collapse:collapse;
+  margin-top:20px;
+}
+
+th, td {
+  border:1px solid #334155;
+  padding:8px;
+  text-align:center;
+}
+
+th { background:#1e293b; }
+
+.positivo { color:#22c55e; font-weight:bold; }
+.negativo { color:#ef4444; font-weight:bold; }
+
+.graficos {
+  display:flex;
+  gap:20px;
+  flex-wrap:wrap;
+  margin-top:30px;
+}
+
+.grafico-box {
+  background:#1e293b;
+  padding:15px;
+  border-radius:10px;
+  width:100%;
+  max-width:480px;
+}
+
+.obs-box {
+  background:#1e293b;
+  padding:20px;
+  border-radius:10px;
+  margin-top:30px;
+}
+
+.card-estrategia {
+  background:#1e293b;
+  padding:15px;
+  border-radius:10px;
+  margin-bottom:10px;
+}
+
+.card-estrategia.melhor{
+  border: 2px solid gold;
+  background: rgba(255,215,0,0.08);
+}
+</style>
+</head>
+
+<body>
+
+<h1><i class="fa-solid fa-chart-line"></i> Dashboard Day Trade</h1>
+
+<div class="form-row">
+  <input type="month" id="filterMes">
+  <select id="filterAtivo">
+    <option value="">Todos ativos</option>
+    <option value="WIN">WIN</option>
+    <option value="WDO">WDO</option>
+    <option value="BITFUT">BITFUT</option>
+  </select>
+  <button onclick="limparFiltros()">Todos períodos</button>
+</div>
+
+<div class="cards">
+  <div class="card"><span>Total Operações</span><strong id="totalOps">0</strong></div>
+  <div class="card"><span>Resultado Total</span><strong id="resultadoTotal">R$ 0,00</strong></div>
+  <div class="card"><span>Win Rate Geral</span><strong id="winRateGeral">0%</strong></div>
+  <div class="card"><span>Drawdown Máximo</span><strong id="drawdownMax">R$ 0,00</strong></div>
+</div>
+
+<div class="cards">
+  <div class="card"><span>WIN</span><strong id="winMes">R$ 0,00</strong></div>
+  <div class="card"><span>WDO</span><strong id="wdoMes">R$ 0,00</strong></div>
+  <div class="card"><span>BITFUT</span><strong id="bitMes">R$ 0,00</strong></div>
+</div>
+
+<div class="cards">
+  <div class="card"><span>Média Gain</span><strong id="mediaGain">R$ 0,00</strong></div>
+  <div class="card"><span>Média Loss</span><strong id="mediaLoss">R$ 0,00</strong></div>
+  <div class="card"><span>Payoff</span><strong id="payoff">0</strong></div>
+  <div class="card"><span>Fator de Lucro</span><strong id="fatorLucro">0</strong></div>
+  <div class="card"><span>Maior Seq. Win</span><strong id="seqWin">0</strong></div>
+  <div class="card"><span>Maior Seq. Loss</span><strong id="seqLoss">0</strong></div>
+</div>
+
+<h2>Nova Operação</h2>
+
+<div class="form-row">
+  <input type="date" id="data">
+  <select id="ativo">
+    <option value="">Ativo</option>
+    <option value="WIN">WIN</option>
+    <option value="WDO">WDO</option>
+    <option value="BITFUT">BITFUT</option>
+  </select>
+  <select id="tipo">
+    <option>Compra</option>
+    <option>Venda</option>
+  </select>
+</div>
+
+<div class="form-row">
+  <input type="number" id="resultado" placeholder="Resultado R$">
+</div>
+
+<div class="form-row">
+  <label><i class="fa-solid fa-chess-knight"></i></label>
+  <select id="estrategia">
+    <option value="">Estratégia</option>
+    <option value="correlação">correlação</option>
+    <option value="mercado esticado">mercado esticado</option>
+    <option value="band">band</option>
+    <option value="medias">medias</option>
+  </select>
+
+  <label><i class="fa-solid fa-brain"></i></label>
+  <select id="emocao">
+    <option value="">Emoção</option>
+    <option value="tranquilo">tranquilo</option>
+    <option value="tenso">tenso</option>
+    <option value="nervoso">nervoso</option>
+    <option value="ansioso">ansioso</option>
+    <option value="cansado">cansado</option>
+  </select>
+</div>
+
+<div class="form-row">
+  <textarea id="observacao" placeholder="Observação"></textarea>
+</div>
+
+<button onclick="salvarOperacao()">Salvar Operação</button>
+
+<table>
+<thead>
+<tr>
+  <th>Data</th>
+  <th>Ativo</th>
+  <th>Tipo</th>
+  <th>Estratégia</th>
+  <th>Emoção</th>
+  <th>Resultado</th>
+  <th>Ações</th>
+</tr>
+</thead>
+<tbody id="tabela"></tbody>
+</table>
+
+<div class="graficos">
+  <div class="grafico-box">
+    <h3>Resultado Mensal</h3>
+    <canvas id="graficoMensal"></canvas>
+  </div>
+  <div class="grafico-box">
+    <h3>Resultado Anual</h3>
+    <canvas id="graficoAnual"></canvas>
+  </div>
+  <div class="grafico-box">
+    <h3>Resultado por Estratégia</h3>
+    <canvas id="graficoEstrategia"></canvas>
+  </div>
+<h2>Estatística por Estratégia</h2>
+<div id="estatEstrategia"></div>
+  <div class="grafico-box">
+    <h3>Resultado por Emoção</h3>
+    <canvas id="graficoEmocao"></canvas>
+  </div>
+<div class="grafico-box">
+    <h3>Curva de Capital</h3>
+    <canvas id="graficoCapital"></canvas>
+  </div>
+
+<div class="meta-box">
+  <h2><i class="fa-solid fa-bullseye"></i> Meta Mensal</h2>
+  <div class="form-row">
+    <input type="number" id="metaMensal" placeholder="Definir Meta R$">
+    <button onclick="salvarMeta()">Salvar Meta</button>
+  </div>
+  <h3>Progresso Atual: <span id="progressoMeta">R$ 0,00</span></h3>
+</div>
+
+<div class="obs-box">
+  <h2><i class="fa-solid fa-book"></i> Observação Diária</h2>
+  <div class="form-row">
+    <input type="date" id="dataObsDiaria">
+  </div>
+  <div class="form-row">
+    <textarea id="textoObsDiaria" placeholder="Escreva sua observação do dia..."></textarea>
+  </div>
+  <button onclick="salvarObsDiaria()">
+    <i class="fa-solid fa-floppy-disk"></i> Salvar Observação
+  </button>
+  <hr style="margin:20px 0; border-color:#334155;">
+  <h3>Buscar Observação por Data</h3>
+  <div class="form-row">
+    <input type="date" id="buscarDataObs">
+    <button onclick="buscarObsDiaria()">
+      <i class="fa-solid fa-magnifying-glass"></i> Buscar
+    </button>
+  </div>
+  <div id="resultadoObsBusca" style="margin-top:10px;"></div>
+</div>
+
+<script>
+let operacoes = JSON.parse(localStorage.getItem('operacoes')) || [];
+const tabela = document.getElementById('tabela');
+const filterMes = document.getElementById('filterMes');
+const filterAtivo = document.getElementById('filterAtivo');
+
+function formatarReal(valor){ return valor.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function paraNumero(valor){ return Number(valor) || 0; }
+
+function aplicarFiltros(){
+  return operacoes.filter(op=>{
+
+    if(filterMes.value){
+
+      const partesFiltro = filterMes.value.split('-');
+      const anoFiltro = partesFiltro[0];
+      const mesFiltro = partesFiltro[1];
+
+      let dataObj;
+
+      // Detecta formato automaticamente
+      if(op.data.includes('/')){
+        // Formato BR DD/MM/AAAA
+        const partes = op.data.split('/');
+        dataObj = new Date(partes[2], partes[1]-1, partes[0]);
+      } else {
+        // Formato ISO 2026-01-07 ou com T...
+        dataObj = new Date(op.data);
+      }
+
+      const mesOp = String(dataObj.getMonth() + 1).padStart(2,'0');
+      const anoOp = String(dataObj.getFullYear());
+
+      if(mesOp !== mesFiltro || anoOp !== anoFiltro){
+        return false;
+      }
+    }
+
+    if(filterAtivo.value && op.ativo !== filterAtivo.value){
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function formatarDataRecebida(data){
+  if(!data) return "-";
+
+  // Se já estiver no formato brasileiro (dd/mm/yyyy)
+  if(typeof data === "string" && data.match(/^\d{2}\/\d{2}\/\d{4}$/)){
+    return data;
+  }
+
+  // Se vier no formato ISO (yyyy-mm-dd ou com T...)
+  const d = new Date(data);
+
+  if(!isNaN(d)){
+    const dia = String(d.getDate()).padStart(2, '0');
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const ano = d.getFullYear();
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  return "-";
+}
+
+
+function atualizarDashboard(){
+  const ops = aplicarFiltros();
+  tabela.innerHTML='';
+
+  let total=0,wins=0;
+  let capital=0;
+  let pico=0;
+  let drawdownMax=0;
+  let capitalArray=[];
+  let drawdownPercent=0;
+
+  let ganhos=[],perdas=[];
+  let seqAtualWin=0,seqAtualLoss=0;
+  let maiorSeqWin=0,maiorSeqLoss=0;
+  let winTotal=0,wdoTotal=0,bitTotal=0;
+  
+  let estatPorEstrategia = {};
+
+  ops.forEach((op,i)=>{
+    const resultadoNum=paraNumero(op.resultado);
+
+    let est = op.estrategia || "Sem Estratégia";
+
+if(!estatPorEstrategia[est]){
+  estatPorEstrategia[est] = {
+    total: 0,
+    quantidade: 0,
+    wins: 0,
+    losses: 0,
+    maiorGain: -Infinity,
+    maiorLoss: Infinity
+  };
+}
+
+estatPorEstrategia[est].total += resultadoNum;
+estatPorEstrategia[est].quantidade++;
+
+if(resultadoNum > 0){
+  estatPorEstrategia[est].wins++;
+  if(resultadoNum > estatPorEstrategia[est].maiorGain)
+    estatPorEstrategia[est].maiorGain = resultadoNum;
+}
+
+if(resultadoNum < 0){
+  estatPorEstrategia[est].losses++;
+  if(resultadoNum < estatPorEstrategia[est].maiorLoss)
+    estatPorEstrategia[est].maiorLoss = resultadoNum;
+}
+    capital+=resultadoNum;
+    capitalArray.push(capital);
+
+    if(capital>pico) pico=capital;
+    let ddAtual=pico-capital;
+    if(ddAtual>drawdownMax) drawdownMax=ddAtual;
+if(pico>0){
+  let ddPerc = (ddAtual/pico)*100;
+  if(ddPerc>drawdownPercent) drawdownPercent=ddPerc;
+}
+
+    total+=resultadoNum;
+    if(resultadoNum>0){ wins++; ganhos.push(resultadoNum); seqAtualWin++; seqAtualLoss=0; if(seqAtualWin>maiorSeqWin) maiorSeqWin=seqAtualWin;}
+    else if(resultadoNum<0){ perdas.push(resultadoNum); seqAtualLoss++; seqAtualWin=0; if(seqAtualLoss>maiorSeqLoss) maiorSeqLoss=seqAtualLoss;}
+    if(op.ativo==="WIN") winTotal+=resultadoNum;
+    if(op.ativo==="WDO") wdoTotal+=resultadoNum;
+    if(op.ativo==="BITFUT") bitTotal+=resultadoNum;
+
+    tabela.innerHTML+=`
+<tr>
+  <td>${op.data}</td>
+  <td>${op.ativo}</td>
+  <td>${op.tipo}</td>
+  <td>${op.estrategia||'-'}</td>
+  <td>${op.emocao||'-'}</td>
+  <td class="${resultadoNum>=0?'positivo':'negativo'}">${formatarReal(resultadoNum)}</td>
+  <td>
+    <button onclick="editarObservacao(${i})"><i class="fa-solid fa-note-sticky"></i></button>
+    <button onclick="editarEmocao(${i})"><i class="fa-solid fa-brain"></i></button>
+    <button onclick="deletarOperacao(${i})"><i class="fa fa-trash"></i></button>
+  </td>
+</tr>`;
+
+  });
+
+  let mediaGain = ganhos.length?ganhos.reduce((a,b)=>a+b,0)/ganhos.length:0;
+  let mediaLoss = perdas.length?perdas.reduce((a,b)=>a+b,0)/perdas.length:0;
+  let payoff = mediaLoss!==0?mediaGain/Math.abs(mediaLoss):0;
+  let fatorLucro = perdas.length?ganhos.reduce((a,b)=>a+b,0)/Math.abs(perdas.reduce((a,b)=>a+b,0)):0;
+
+  document.getElementById('totalOps').textContent=ops.length;
+  document.getElementById('resultadoTotal').textContent=formatarReal(total);
+  document.getElementById('winRateGeral').textContent=ops.length?((wins/ops.length)*100).toFixed(1)+'%':'0%';
+  document.getElementById('winMes').textContent=formatarReal(winTotal);
+  document.getElementById('wdoMes').textContent=formatarReal(wdoTotal);
+  document.getElementById('bitMes').textContent=formatarReal(bitTotal);
+  document.getElementById('mediaGain').textContent=formatarReal(mediaGain);
+  document.getElementById('mediaLoss').textContent=formatarReal(mediaLoss);
+  document.getElementById('payoff').textContent=payoff.toFixed(2);
+  document.getElementById('fatorLucro').textContent=fatorLucro.toFixed(2);
+  document.getElementById('seqWin').textContent=maiorSeqWin;
+  document.getElementById('seqLoss').textContent=maiorSeqLoss;
+  document.getElementById('drawdownMax').textContent =
+  formatarReal(drawdownMax) + " (" + drawdownPercent.toFixed(2) + "%)";
+
+graficoCapital.data.labels=capitalArray.map((_,i)=>i+1);
+graficoCapital.data.datasets[0].data=capitalArray;
+let linhaMeta = capitalArray.map(()=>metaMensal);
+graficoCapital.data.datasets[1].data = linhaMeta;
+
+graficoCapital.update();
+
+atualizarMeta(total);
+
+let divEst = document.getElementById("estatEstrategia");
+divEst.innerHTML = "";
+
+let ranking = Object.entries(estatPorEstrategia);
+
+ranking = ranking.map(item => {
+
+  let nome = item[0];
+  let dados = item[1];
+
+  let winRate = dados.quantidade > 0 
+      ? (dados.wins / dados.quantidade)
+      : 0;
+
+  let lossRate = 1 - winRate;
+
+  let somaGain = 0;
+  let somaLoss = 0;
+
+  ops.forEach(op=>{
+    if(op.estrategia === nome){
+      let r = Number(op.resultado);
+      if(r > 0) somaGain += r;
+      if(r < 0) somaLoss += r;
+    }
+  });
+
+  let mediaG = dados.wins > 0 ? somaGain / dados.wins : 0;
+  let mediaL = dados.losses > 0 ? Math.abs(somaLoss / dados.losses) : 0;
+
+  let expectativa = (winRate * mediaG) - (lossRate * mediaL);
+
+  return {
+    nome,
+    dados,
+    expectativa,
+    mediaG,
+    mediaL,
+    winRate
+  };
+});
+
+// 🔥 Ordena por EXPECTATIVA (não mais por lucro)
+ranking.sort((a, b) => b.expectativa - a.expectativa);
+
+ranking.forEach((item, index) => {
+
+  let nome = item.nome;
+  let dados = item.dados;
+  let expectativa = item.expectativa;
+  let mediaG = item.mediaG;
+  let mediaL = item.mediaL;
+  let winRate = item.winRate;
+
+  let medalha = "";
+  if(index === 0) medalha = "🥇";
+  else if(index === 1) medalha = "🥈";
+  else if(index === 2) medalha = "🥉";
+
+  divEst.innerHTML += `
+    <div class="card-estrategia ${index === 0 ? 'melhor' : ''}">
+      <h3>${medalha} ${nome}</h3>
+      <p>Lucro Total: ${formatarReal(dados.total)}</p>
+      <p>Operações: ${dados.quantidade}</p>
+      <p>Win Rate: ${(winRate*100).toFixed(1)}%</p>
+      <p>Média Gain: ${formatarReal(mediaG)}</p>
+      <p>Média Loss: ${formatarReal(mediaL)}</p>
+      <p><strong>Expectativa: ${formatarReal(expectativa)}</strong></p>
+    </div>
+  `;
+});
+  atualizarGraficos(ops);
+}
+
+function atualizarGraficos(ops){
+  const mensal={},anual={},estrategias={},emocao={};
+
+  ops.forEach(op=>{
+    const val=paraNumero(op.resultado);
+    const mes=op.data.slice(0,7);
+    const ano=op.data.slice(0,4);
+    mensal[mes]=(mensal[mes]||0)+val;
+    anual[ano]=(anual[ano]||0)+val;
+
+    const est=op.estrategia||'Sem';
+    estrategias[est]=(estrategias[est]||0)+val;
+
+    const emo=op.emocao||'Sem';
+    emocao[emo]=(emocao[emo]||0)+val;
+  });
+
+  graficoMensal.data.labels=Object.keys(mensal);
+  graficoMensal.data.datasets[0].data=Object.values(mensal);
+  graficoMensal.update();
+
+  graficoAnual.data.labels=Object.keys(anual);
+  graficoAnual.data.datasets[0].data=Object.values(anual);
+  graficoAnual.update();
+
+  graficoEstrategia.data.labels=Object.keys(estrategias);
+  graficoEstrategia.data.datasets[0].data=Object.values(estrategias);
+  graficoEstrategia.update();
+
+  graficoEmocao.data.labels=Object.keys(emocao);
+  graficoEmocao.data.datasets[0].data=Object.values(emocao);
+  graficoEmocao.update();
+}
+
+function salvarOperacao(){
+  if(!data.value || !ativo.value || !tipo.value || !resultado.value || !estrategia.value || !emocao.value){
+    return alert("Preencha todos os campos da nova operação!");
+  }
+  operacoes.push({
+    data:data.value,
+    ativo:ativo.value,
+    tipo:tipo.value,
+    resultado:Number(resultado.value),
+    estrategia:estrategia.value,
+    emocao:emocao.value,
+    observacao:observacao.value
+  });
+var dados = {
+  tipoRegistro: "operacao",
+  data: data.value,
+  ativo: ativo.value,
+  tipo: tipo.value,
+  estrategia: estrategia.value,
+  emocao: emocao.value,
+  resultado: Number(resultado.value),
+  observacao: observacao.value
+};
+
+fetch("https://script.google.com/macros/s/AKfycbzQUmDYdVU36XNkDvbLCrKlA4BmhG5RVIv3y6OzVcxsmL8abM00K8RfXoPdtkGao85R8w/exec", {
+  method: "POST",
+  mode: "no-cors",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify(dados)
+});
+
+
+  localStorage.setItem('operacoes',JSON.stringify(operacoes));
+  atualizarDashboard();
+}
+
+
+function editarObservacao(i){ const texto=prompt("Observação:",operacoes[i].observacao||""); if(texto!==null){operacoes[i].observacao=texto; localStorage.setItem('operacoes',JSON.stringify(operacoes)); atualizarDashboard();} }
+function editarEmocao(i){ const texto=prompt("Emoção:",operacoes[i].emocao||""); if(texto!==null){operacoes[i].emocao=texto; localStorage.setItem('operacoes',JSON.stringify(operacoes)); atualizarDashboard();} }
+function salvarObsDiaria() {
+  const data = document.getElementById('dataObsDiaria').value;
+  const texto = document.getElementById('textoObsDiaria').value;
+
+  if (!data) return alert("Selecione a data.");
+  if (!texto) return alert("Digite a observação.");
+
+  fetch("https://script.google.com/macros/s/AKfycbzQUmDYdVU36XNkDvbLCrKlA4BmhG5RVIv3y6OzVcxsmL8abM00K8RfXoPdtkGao85R8w/exec", {
+    method: "POST",
+    mode: "no-cors",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      tipoRegistro: "observacaoDiaria",
+      data: data,
+      observacao: texto
+    })
+  });
+
+  alert("Observação enviada!");
+}
+
+
+
+function buscarObsDiaria() {
+
+  const dataBusca = document.getElementById('buscarDataObs').value;
+  const div = document.getElementById('resultadoObsBusca');
+
+  console.log("Botão buscar clicado");
+  console.log("Data buscada:", dataBusca);
+
+  fetch("https://script.google.com/macros/s/AKfycbzQUmDYdVU36XNkDvbLCrKlA4BmhG5RVIv3y6OzVcxsmL8abM00K8RfXoPdtkGao85R8w/exec?aba=observacoes")
+    .then(res => res.json())
+    .then(dados => {
+
+      let encontrada = false;
+
+      for (let i = 1; i < dados.length; i++) {
+
+        let dataPlanilha = dados[i][0];
+
+        if (!dataPlanilha) continue;
+
+        // Converte qualquer formato para YYYY-MM-DD
+        let dataFormatada = new Date(dataPlanilha);
+        let ano = dataFormatada.getFullYear();
+        let mes = String(dataFormatada.getMonth() + 1).padStart(2, '0');
+        let dia = String(dataFormatada.getDate()).padStart(2, '0');
+
+        let dataComparacao = `${ano}-${mes}-${dia}`;
+
+        console.log("Comparando:", dataComparacao, "com", dataBusca);
+
+        if (dataComparacao === dataBusca) {
+
+          div.innerHTML =
+            "<div style='background:#0f172a;padding:10px;border-radius:6px;'>"
+            + dados[i][1] +
+            "</div>";
+
+          encontrada = true;
+          break;
+        }
+      }
+
+      if (!encontrada) {
+        div.innerHTML = "Nenhuma observação encontrada.";
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      div.innerHTML = "Erro ao buscar observação.";
+    });
+}
+
+  
+function limparFiltros(){ filterMes.value=''; filterAtivo.value=''; atualizarDashboard(); }
+
+filterMes.onchange=atualizarDashboard;
+filterAtivo.onchange=atualizarDashboard;
+
+const graficoMensal=new Chart(document.getElementById('graficoMensal'),{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:'#22c55e'}]},options:{plugins:{legend:{display:false}}}});
+const graficoAnual=new Chart(document.getElementById('graficoAnual'),{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:'#3b82f6'}]},options:{plugins:{legend:{display:false}}}});
+const graficoEstrategia=new Chart(document.getElementById('graficoEstrategia'),{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:'#facc15'}]},options:{plugins:{legend:{display:false}}}});
+const graficoEmocao=new Chart(document.getElementById('graficoEmocao'),{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:'#ef4444'}]},options:{plugins:{legend:{display:false}}}});
+const graficoCapital=new Chart(document.getElementById('graficoCapital'),{
+  type:'line',
+  data:{
+    labels:[],
+    datasets:[
+      {
+        label:'Capital',
+        data:[],
+        borderColor:'#22c55e',
+        fill:false,
+        tension:0.2
+      },
+      {
+        label:'Meta',
+        data:[],
+        borderColor:'#facc15',
+        borderDash:[6,6],
+        fill:false,
+        tension:0
+      }
+    ]
+  },
+  options:{
+    plugins:{legend:{display:true}}
+  }
+});
+
+let metaMensal = Number(localStorage.getItem('metaMensal')) || 0;
+
+function salvarMeta(){
+  metaMensal = Number(document.getElementById('metaMensal').value);
+  localStorage.setItem('metaMensal',metaMensal);
+  atualizarDashboard();
+}
+
+function atualizarMeta(total){
+  document.getElementById('progressoMeta').textContent =
+    formatarReal(total) + (metaMensal ? " / Meta: " + formatarReal(metaMensal) : "");
+}
+
+function carregarOperacoes() {
+  fetch("https://script.google.com/macros/s/AKfycbzQUmDYdVU36XNkDvbLCrKlA4BmhG5RVIv3y6OzVcxsmL8abM00K8RfXoPdtkGao85R8w/exec?aba=operacoes")
+    .then(res => res.json())
+    .then(dados => {
+
+      // remove cabeçalho
+      dados.shift();
+
+    operacoes = dados.map(linha => {
+
+  let dataBruta = new Date(linha[0]);
+
+  let dia = String(dataBruta.getDate()).padStart(2, '0');
+  let mes = String(dataBruta.getMonth() + 1).padStart(2, '0');
+  let ano = dataBruta.getFullYear();
+
+  let dataFormatada = `${dia}/${mes}/${ano}`;
+
+  return {
+    data: dataFormatada,
+    ativo: linha[1],
+    tipo: linha[2],
+    estrategia: linha[3],
+    emocao: linha[4],
+    resultado: Number(linha[5]),
+    observacao: linha[6]
+  };
+
+});
+
+
+      console.log("Operações carregadas:", operacoes);
+
+      atualizarDashboard(); // mantém sua função atual
+    })
+    .catch(err => {
+      console.error("Erro ao carregar:", err);
+    });
+}
+function deletarOperacao(indiceVisual){
+
+  if(!confirm("Tem certeza que deseja apagar essa operação?")) return;
+
+  const linhaPlanilha = indiceVisual + 2;
+
+  fetch("https://script.google.com/macros/s/AKfycbzQUmDYdVU36XNkDvbLCrKlA4BmhG5RVIv3y6OzVcxsmL8abM00K8RfXoPdtkGao85R8w/exec",{
+    method: "POST",
+    body: JSON.stringify({
+      tipoRegistro: "deletarOperacao",
+      linha: linhaPlanilha
+    })
+  })
+  .then(res => res.json())
+  .then(() => {
+      alert("Operação apagada!");
+      carregarOperacoes();
+  })
+  .catch(err => {
+      console.error("Erro ao deletar:", err);
+  });
+
+}
+
+
+carregarOperacoes();
+
+</script>
+
+</body>
+</html>
