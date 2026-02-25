@@ -274,38 +274,53 @@ let operacoes = JSON.parse(localStorage.getItem('operacoes')) || [];
 const tabela = document.getElementById('tabela');
 const filterMes = document.getElementById('filterMes');
 const filterAtivo = document.getElementById('filterAtivo');
+let modoExibicao = "hoje"; 
+// valores possíveis: "hoje", "mes", "todos"
 
 function formatarReal(valor){ return valor.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
 function paraNumero(valor){ return Number(valor) || 0; }
 
 function aplicarFiltros(){
+
+  const hoje = new Date();
+  const diaHoje = String(hoje.getDate()).padStart(2,'0');
+  const mesHoje = String(hoje.getMonth()+1).padStart(2,'0');
+  const anoHoje = String(hoje.getFullYear());
+
   return operacoes.filter(op=>{
 
-    if(filterMes.value){
+    let dataObj;
 
+    if(op.data.includes('/')){
+      const partes = op.data.split('/');
+      dataObj = new Date(partes[2], partes[1]-1, partes[0]);
+    } else {
+      dataObj = new Date(op.data);
+    }
+
+    const diaOp = String(dataObj.getDate()).padStart(2,'0');
+    const mesOp = String(dataObj.getMonth()+1).padStart(2,'0');
+    const anoOp = String(dataObj.getFullYear());
+
+    // 🔵 MODO HOJE
+    if(modoExibicao === "hoje"){
+      if(diaOp !== diaHoje || mesOp !== mesHoje || anoOp !== anoHoje){
+        return false;
+      }
+    }
+
+    // 🟢 MODO MÊS
+    if(modoExibicao === "mes"){
       const partesFiltro = filterMes.value.split('-');
       const anoFiltro = partesFiltro[0];
       const mesFiltro = partesFiltro[1];
-
-      let dataObj;
-
-      // Detecta formato automaticamente
-      if(op.data.includes('/')){
-        // Formato BR DD/MM/AAAA
-        const partes = op.data.split('/');
-        dataObj = new Date(partes[2], partes[1]-1, partes[0]);
-      } else {
-        // Formato ISO 2026-01-07 ou com T...
-        dataObj = new Date(op.data);
-      }
-
-      const mesOp = String(dataObj.getMonth() + 1).padStart(2,'0');
-      const anoOp = String(dataObj.getFullYear());
 
       if(mesOp !== mesFiltro || anoOp !== anoFiltro){
         return false;
       }
     }
+
+    // 🔴 MODO TODOS → não filtra por data
 
     if(filterAtivo.value && op.ativo !== filterAtivo.value){
       return false;
@@ -314,7 +329,6 @@ function aplicarFiltros(){
     return true;
   });
 }
-
 function formatarDataRecebida(data){
   if(!data) return "-";
 
@@ -676,9 +690,23 @@ function buscarObsDiaria() {
 }
 
   
-function limparFiltros(){ filterMes.value=''; filterAtivo.value=''; atualizarDashboard(); }
+function limparFiltros(){
+  filterMes.value = '';
+  filterAtivo.value = '';
+  modoExibicao = "todos";
+  atualizarDashboard();
+}
 
-filterMes.onchange=atualizarDashboard;
+filterMes.onchange = function(){
+
+  if(filterMes.value){
+    modoExibicao = "mes";
+  } else {
+    modoExibicao = "hoje";
+  }
+
+  atualizarDashboard();
+};
 filterAtivo.onchange=atualizarDashboard;
 
 const graficoMensal=new Chart(document.getElementById('graficoMensal'),{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:'#22c55e'}]},options:{plugins:{legend:{display:false}}}});
