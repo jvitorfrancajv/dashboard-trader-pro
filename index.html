@@ -102,7 +102,7 @@
 
     <div class="graficos">
         <div class="grafico-box full-width"><h3>Curva de Capital Acumulado</h3><canvas id="graficoCapital" height="60"></canvas></div>
-        <div class="grafico-box"><h3>Mensal (Dias do Mês)</h3><canvas id="graficoMensal"></canvas></div>
+        <div class="grafico-box"><h3>Resultado por Data</h3><canvas id="graficoMensal"></canvas></div>
         <div class="grafico-box"><h3>Anual (Meses do Ano)</h3><canvas id="graficoAnual"></canvas></div>
         <div class="grafico-box"><h3>Resultado por Estratégia</h3><canvas id="graficoEstrategia"></canvas></div>
     </div>
@@ -157,7 +157,7 @@
     <div class="form-row"><input type="text" id="buscaHistorico" placeholder="🔍 Filtrar histórico..." onkeyup="filtrarTabela()" style="width:100%"></div>
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Data</th><th>Ativo</th><th>Tipo</th><th>Estratégia</th><th>Resultado</th><th>Obs</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Data</th><th>Ativo</th><th>Tipo</th><th>Estrategia</th><th>Resultado</th><th>Obs</th><th>Ações</th></tr></thead>
             <tbody id="tabela"></tbody>
         </table>
     </div>
@@ -205,7 +205,6 @@ function atualizarDashboard(){
         if(capital > pico) pico = capital;
         let dd = pico - capital; if(dd > ddMax) ddMax = dd;
         
-        // Lógica de Payoff e Médias
         if(res > 0){ 
             wins++; gains.push(res); seqW++; seqL=0; if(seqW > maxW) maxW = seqW; 
         } else if(res < 0){ 
@@ -222,7 +221,6 @@ function atualizarDashboard(){
         tbody.innerHTML += `<tr><td>${op.data}</td><td>${op.ativo}</td><td>${op.tipo || '-'}</td><td>${op.estrategia}</td><td class="${res>=0?'positivo':'negativo'}">${formatarReal(res)}</td><td>${op.observacao||'-'}</td><td><button class="btn-edit" onclick="prepararEdicao(${op.idRow})"><i class="fas fa-edit"></i></button><button class="btn-del" onclick="deletarOperacao(${op.idRow})"><i class="fas fa-trash"></i></button></td></tr>`;
     });
 
-    // Cálculos Estatísticos Corrigidos
     const totalGains = gains.reduce((a, b) => a + b, 0);
     const totalLosses = losses.reduce((a, b) => a + b, 0);
     const mG = gains.length ? totalGains / gains.length : 0;
@@ -252,7 +250,15 @@ function atualizarDashboard(){
 }
 
 function renderCharts(fOps, allOps, capArray, estStats){
-    const dias = {}; fOps.forEach(op => { let d = op.data.split('/')[0]; dias[d] = (dias[d] || 0) + paraNumero(op.resultado); });
+    // Gráfico Mensal - Agora usa a data formatada DD/MM
+    const diasObj = {}; 
+    fOps.forEach(op => { 
+        let dParts = op.data.split('/');
+        let dataCurta = `${dParts[0]}/${dParts[1]}`; // Extrai DD/MM
+        diasObj[dataCurta] = (diasObj[dataCurta] || 0) + paraNumero(op.resultado); 
+    });
+
+    // Gráfico Anual
     const mesesNomes = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
     const mesesVal = Array(12).fill(0);
     const anoAtual = new Date().getFullYear().toString();
@@ -265,7 +271,9 @@ function renderCharts(fOps, allOps, capArray, estStats){
         if(charts[ctx]) charts[ctx].destroy();
         charts[ctx] = new Chart(document.getElementById(ctx), { type:'bar', data:{ labels, datasets:[{data, backgroundColor:color, borderRadius:4}] }, options:{plugins:{legend:{display:false}}}});
     };
-    config('graficoMensal', Object.keys(dias), Object.values(dias), '#3b82f6');
+    
+    // Renderiza com as datas DD/MM no eixo X
+    config('graficoMensal', Object.keys(diasObj), Object.values(diasObj), '#3b82f6');
     config('graficoAnual', mesesNomes, mesesVal, '#a855f7');
     config('graficoEstrategia', Object.keys(estStats), Object.values(estStats).map(s => s.total), '#facc15');
 }
