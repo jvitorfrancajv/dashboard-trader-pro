@@ -139,7 +139,10 @@
         <div class="form-row">
             <div style="flex:1"><label><i class="fas fa-lightbulb"></i> Estratégia</label>
                 <select id="estrategia">
-                    <option value="correlação">correlação</option><option value="mercado esticado">mercado esticado</option><option value="band">band</option><option value="medias">medias</option>
+                    <option value="abertura">abertura</option> <option value="correlação">correlação</option>
+                    <option value="mercado esticado">mercado esticado</option>
+                    <option value="band">band</option>
+                    <option value="medias">medias</option>
                 </select>
             </div>
             <div style="flex:1"><label><i class="fas fa-dollar-sign"></i> Resultado R$</label>
@@ -250,15 +253,13 @@ function atualizarDashboard(){
 }
 
 function renderCharts(fOps, allOps, capArray, estStats){
-    // Gráfico Mensal - Agora usa a data formatada DD/MM
     const diasObj = {}; 
     fOps.forEach(op => { 
         let dParts = op.data.split('/');
-        let dataCurta = `${dParts[0]}/${dParts[1]}`; // Extrai DD/MM
+        let dataCurta = `${dParts[0]}/${dParts[1]}`;
         diasObj[dataCurta] = (diasObj[dataCurta] || 0) + paraNumero(op.resultado); 
     });
 
-    // Gráfico Anual
     const mesesNomes = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
     const mesesVal = Array(12).fill(0);
     const anoAtual = new Date().getFullYear().toString();
@@ -272,7 +273,6 @@ function renderCharts(fOps, allOps, capArray, estStats){
         charts[ctx] = new Chart(document.getElementById(ctx), { type:'bar', data:{ labels, datasets:[{data, backgroundColor:color, borderRadius:4}] }, options:{plugins:{legend:{display:false}}}});
     };
     
-    // Renderiza com as datas DD/MM no eixo X
     config('graficoMensal', Object.keys(diasObj), Object.values(diasObj), '#3b82f6');
     config('graficoAnual', mesesNomes, mesesVal, '#a855f7');
     config('graficoEstrategia', Object.keys(estStats), Object.values(estStats).map(s => s.total), '#facc15');
