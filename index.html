@@ -10,6 +10,7 @@
             --bg-dark: #0f172a; --bg-card: #1e293b; --primary: #22c55e;
             --secondary: #3b82f6; --accent: #facc15; --danger: #ef4444;
             --text-main: #e5e7eb; --text-dim: #94a3b8;
+            --indigo: #6366f1;
         }
         body { background: var(--bg-dark); color: var(--text-main); font-family: sans-serif; padding: 15px; margin: 0; }
         
@@ -51,6 +52,11 @@
         .card-estrategia.melhor { border: 2px solid gold; background: rgba(255,215,0,0.05); }
 
         #loading { position: fixed; top: 10px; right: 10px; background: var(--accent); color: #000; padding: 4px 12px; border-radius: 15px; display: none; font-weight: bold; font-size: 10px; z-index: 9999; }
+
+        .grid-abertura { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }
+        .item-abertura { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #334155; font-size: 12px; }
+        .pressao-card { text-align: center; padding: 20px; border-radius: 12px; background: #1e293b; border: 2px solid var(--indigo); margin-bottom: 15px; }
+        .veredito-texto { font-size: 28px; font-weight: 900; margin: 10px 0; letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -59,19 +65,49 @@
 
 <div class="tabs">
     <button class="tab-btn active" id="btn-resumo" onclick="switchTab('aba-resumo', this)">RESUMO</button>
+    <button class="tab-btn" style="background: var(--indigo); color: white;" onclick="switchTab('aba-abertura', this); carregarDadosAbertura();">ABERTURA MARKET</button>
     <button class="tab-btn" id="btn-novo" onclick="switchTab('aba-operacoes', this)">NOVO TRADE</button>
     <button class="tab-btn" onclick="switchTab('aba-historico', this)">HISTÓRICO</button>
     <button class="tab-btn" onclick="switchTab('aba-diario', this)">DIÁRIO</button>
 </div>
 
+<div id="aba-abertura" class="tab-content">
+    <button onclick="carregarDadosAbertura()" style="width: 100%; margin-bottom: 15px; padding: 10px; background: var(--indigo); font-size: 14px; border-radius: 6px; border: none; color: white; cursor: pointer; font-weight: bold;">
+        <i class="fas fa-sync-alt"></i> ATUALIZAR COTAÇÕES
+    </button>
+
+    <div class="pressao-card">
+        <span style="color: var(--text-dim); text-transform: uppercase; font-size: 12px; font-weight: bold;">Sentimento de Abertura (Média ADRs)</span>
+        <div id="abertura-veredito" class="veredito-texto">AGUARDANDO...</div>
+        <div id="abertura-media" style="font-size: 16px; color: var(--accent);">Média: 0.00%</div>
+    </div>
+
+    <div class="grid-abertura">
+        <div class="grafico-box">
+            <h4 style="margin: 0 0 10px 0; color: var(--secondary); border-bottom: 1px solid #334155; padding-bottom: 5px;">ADRs & Bancos (Brasil)</h4>
+            <div id="lista-adrs"></div>
+        </div>
+        <div class="grafico-box">
+            <h4 style="margin: 0 0 10px 0; color: var(--accent); border-bottom: 1px solid #334155; padding-bottom: 5px;">Commodities</h4>
+            <div id="lista-commodities"></div>
+        </div>
+        <div class="grafico-box">
+            <h4 style="margin: 0 0 10px 0; color: #a855f7; border-bottom: 1px solid #334155; padding-bottom: 5px;">Índices & Sentimento</h4>
+            <div id="lista-indices"></div>
+        </div>
+    </div>
+</div>
+
 <div id="aba-resumo" class="tab-content active">
     <div class="form-row">
-        <input type="month" id="filterMes">
+        <input type="date" id="filterDia" title="Filtrar por Dia Exato">
+        <input type="month" id="filterMes" title="Filtrar por Mês">
         <select id="filterAtivo">
-            <option value="">Ativos</option>
+            <option value="">Todos Ativos</option>
             <option value="WIN">WIN</option><option value="WDO">WDO</option><option value="BITFUT">BITFUT</option>
         </select>
         <button onclick="limparFiltros()" style="background:var(--secondary)">Limpar</button>
+        <button onclick="filtrarHoje()" style="background:var(--primary)">Hoje</button>
     </div>
 
     <div class="cards">
@@ -179,6 +215,8 @@
 
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbzQUmDYdVU36XNkDvbLCrKlA4BmhG5RVIv3y6OzVcxsmL8abM00K8RfXoPdtkGao85R8w/exec";
+const BRAPI_TOKEN = "qq5H8r5UpTc3gE9XNz3kLJ"; 
+
 let operacoes = [];
 let charts = {};
 let metaMensal = Number(localStorage.getItem('metaTrader')) || 0;
@@ -191,6 +229,107 @@ function switchTab(id, btn) {
     document.getElementById(id).classList.add('active');
     btn.classList.add('active');
 }
+
+// ==========================================
+// FUNÇÃO ABERTURA MARKET COM HORÁRIOS SOLICITADOS
+// ==========================================
+async function carregarDadosAbertura() {
+    const adrs = ["VALE", "PBR", "ITUB", "BBD", "BBAS3", "BSBR", "EWZ"];
+    const commodities = ["BZ=F", "CL=F", "GC=F"];
+    const indices = ["^GSPC", "^VIX"];
+
+    const divAdr = document.getElementById('lista-adrs');
+    const divCom = document.getElementById('lista-commodities');
+    const divInd = document.getElementById('lista-indices');
+    const vereditoEl = document.getElementById('abertura-veredito');
+    
+    divAdr.innerHTML = ''; divCom.innerHTML = ''; divInd.innerHTML = '';
+    vereditoEl.innerText = "ATUALIZANDO...";
+    vereditoEl.style.color = "var(--text-main)";
+    document.getElementById('loading').style.display = 'block';
+
+    let somaPct = 0;
+    let ativosOk = 0;
+    let sp500Variação = 0;
+
+    async function buscarAtivo(ticker, container, isADR) {
+        try {
+            const r = await fetch(`https://brapi.dev/api/quote/${ticker}?token=${BRAPI_TOKEN}`);
+            const d = await r.json();
+            const res = d.results ? d.results[0] : null;
+
+            if (res) {
+                let pct = res.regularMarketChangePercent || 0;
+                let price = res.regularMarketPrice || 0;
+                let labelExt = '<small style="color:var(--primary); font-weight:bold; margin-left:6px;">[REGULAR]</small>';
+
+                const horaAtual = new Date().getHours();
+                
+                // Lógica de Turnos Específica
+                if (horaAtual >= 6 && horaAtual < 10) {
+                    if (res.extendedMarketChangePercent !== undefined && res.extendedMarketChangePercent !== null) {
+                        pct = res.extendedMarketChangePercent;
+                        price = res.extendedMarketPrice;
+                        labelExt = '<small style="color:#a855f7; font-weight:bold; margin-left:6px;">[PRÉ]</small>';
+                    }
+                } else if (horaAtual >= 18 && horaAtual <= 22) {
+                    if (res.extendedMarketChangePercent !== undefined && res.extendedMarketChangePercent !== null) {
+                        pct = res.extendedMarketChangePercent;
+                        price = res.extendedMarketPrice;
+                        labelExt = '<small style="color:var(--accent); font-weight:bold; margin-left:6px;">[AFTER]</small>';
+                    }
+                }
+
+                const classe = pct >= 0 ? 'positivo' : 'negativo';
+                container.innerHTML += `
+                    <div class="item-abertura">
+                        <span><strong>${res.symbol}</strong>${labelExt}</span>
+                        <span>${price.toFixed(2)} <span class="${classe}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</span></span>
+                    </div>`;
+                
+                if (isADR) { somaPct += pct; ativosOk++; }
+                if (ticker === "^GSPC") { sp500Variação = pct; }
+            }
+        } catch (e) { console.log("Erro no ticker: " + ticker); }
+    }
+
+    for (let t of adrs) await buscarAtivo(t, divAdr, true);
+    for (let t of commodities) await buscarAtivo(t, divCom, false);
+    for (let t of indices) await buscarAtivo(t, divInd, false);
+
+    if (ativosOk > 0) {
+        const media = somaPct / ativosOk;
+        document.getElementById('abertura-media').innerText = `Média de Pressão: ${media.toFixed(2)}%`;
+        
+        if (media > 0.30) {
+            if (sp500Variação < -0.20) {
+                vereditoEl.innerText = "⚠️ COMPRA COM CAUTELA";
+                vereditoEl.style.color = "var(--accent)"; 
+            } else {
+                vereditoEl.innerText = "🚀 COMPRA FORTE";
+                vereditoEl.style.color = "var(--primary)";
+            }
+        } 
+        else if (media < -0.30) {
+            if (sp500Variação > 0.20) {
+                vereditoEl.innerText = "⚠️ VENDA COM CAUTELA";
+                vereditoEl.style.color = "var(--accent)";
+            } else {
+                vereditoEl.innerText = "📉 VENDA FORTE";
+                vereditoEl.style.color = "var(--danger)";
+            }
+        } 
+        else {
+            vereditoEl.innerText = "⚖️ NEUTRO";
+            vereditoEl.style.color = "var(--accent)";
+        }
+    }
+    document.getElementById('loading').style.display = 'none';
+}
+
+// ==========================================
+// FUNÇÕES DE BANCO DE DADOS (MANTIDAS ORIGINAIS)
+// ==========================================
 
 function atualizarDashboard(){
     const fOps = aplicarFiltros();
@@ -208,11 +347,8 @@ function atualizarDashboard(){
         if(capital > pico) pico = capital;
         let dd = pico - capital; if(dd > ddMax) ddMax = dd;
         
-        if(res > 0){ 
-            wins++; gains.push(res); seqW++; seqL=0; if(seqW > maxW) maxW = seqW; 
-        } else if(res < 0){ 
-            losses.push(Math.abs(res)); seqL++; seqW=0; if(seqL > maxL) maxL = seqL; 
-        }
+        if(res > 0){ wins++; gains.push(res); seqW++; seqL=0; if(seqW > maxW) maxW = seqW; } 
+        else if(res < 0){ losses.push(Math.abs(res)); seqL++; seqW=0; if(seqL > maxL) maxL = seqL; }
         
         if(op.ativo==="WIN") winT+=res; if(op.ativo==="WDO") wdoT+=res; if(op.ativo==="BITFUT") bitT+=res;
 
@@ -357,18 +493,46 @@ async function carregarOperacoes() {
     } catch(e) { console.log(e); } finally { document.getElementById('loading').style.display='none'; }
 }
 
-function aplicarFiltros(){
-    const fMes = document.getElementById('filterMes').value;
+function aplicarFiltros() {
+    const fDia = document.getElementById('filterDia').value; 
+    const fMes = document.getElementById('filterMes').value; 
+    const fA = document.getElementById('filterAtivo').value;
+
     return operacoes.filter(op => {
-        const p = op.data.split('/');
-        if(fMes){
+        if (!op.data) return false;
+        const [diaOp, mesOp, anoOp] = op.data.split('/'); 
+
+        if (fDia) {
+            const [anoD, mesD, diaD] = fDia.split('-');
+            if (diaOp !== diaD || mesOp !== mesD || anoOp !== anoD) return false;
+        } 
+        else if (fMes) {
             const [anoF, mesF] = fMes.split('-');
-            if(p[1] !== mesF || p[2] !== anoF) return false;
+            if (mesOp !== mesF || anoOp !== anoF) return false;
         }
-        const fA = document.getElementById('filterAtivo').value;
-        if(fA && op.ativo !== fA) return false;
+
+        if (fA && op.ativo !== fA) return false;
+
         return true;
     });
+}
+
+function limparFiltros(){ 
+    document.getElementById('filterDia').value=''; 
+    document.getElementById('filterMes').value=''; 
+    document.getElementById('filterAtivo').value=''; 
+    atualizarDashboard(); 
+}
+
+function filtrarHoje() {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    
+    document.getElementById('filterDia').value = `${ano}-${mes}-${dia}`;
+    document.getElementById('filterMes').value = ''; 
+    atualizarDashboard();
 }
 
 function filtrarTabela() {
@@ -400,9 +564,16 @@ async function buscarObsDiaria() {
     document.getElementById('loading').style.display='none';
 }
 
-function limparFiltros(){ document.getElementById('filterMes').value=''; document.getElementById('filterAtivo').value=''; atualizarDashboard(); }
-document.getElementById('filterMes').onchange = atualizarDashboard;
+document.getElementById('filterDia').onchange = function() {
+    document.getElementById('filterMes').value = ''; 
+    atualizarDashboard();
+};
+document.getElementById('filterMes').onchange = function() {
+    document.getElementById('filterDia').value = ''; 
+    atualizarDashboard();
+};
 document.getElementById('filterAtivo').onchange = atualizarDashboard;
+
 carregarOperacoes();
 </script>
 </body>
