@@ -128,6 +128,25 @@
         <div class="card"><span>Qtd Trades</span><strong id="totalOps">0</strong></div>
     </div>
 
+    <div class="cards">
+        <div class="card" style="border-bottom: 2px solid #facc15; background: rgba(250, 204, 21, 0.03)">
+            <span><i class="fas fa-bullseye" style="color:#facc15"></i> Pontos WIN</span>
+            <strong id="ptsWin">0 pts</strong>
+        </div>
+        <div class="card" style="border-bottom: 2px solid #3b82f6; background: rgba(59, 130, 246, 0.03)">
+            <span><i class="fas fa-bullseye" style="color:#3b82f6"></i> Pontos WDO</span>
+            <strong id="ptsWdo">0 pts</strong>
+        </div>
+        <div class="card" style="border-bottom: 2px solid #f7931a; background: rgba(247, 147, 26, 0.03)">
+            <span><i class="fas fa-bullseye" style="color:#f7931a"></i> Pontos BITFUT</span>
+            <strong id="ptsBit">0 pts</strong>
+        </div>
+        <div class="card" style="border-top: 2px solid var(--primary); background: rgba(34, 197, 94, 0.05); grid-column: span 3;">
+            <span><i class="fas fa-calculator"></i> SOMA TOTAL PONTOS</span>
+            <strong id="ptsTotalGeral" style="color: var(--primary)">0 pts</strong>
+        </div>
+    </div>
+
     <div class="meta-container">
         <div style="display:flex; justify-content: space-between; font-size: 11px;">
             <span>Progresso da Meta Mensal</span>
@@ -184,6 +203,9 @@
             <div style="flex:1"><label><i class="fas fa-dollar-sign"></i> Resultado R$</label>
                 <input type="number" id="resultado" placeholder="Ex: 150">
             </div>
+            <div style="flex:1"><label><i class="fas fa-bullseye"></i> Pontos</label>
+                <input type="number" id="pontos" placeholder="Ex: 300">
+            </div>
         </div>
         <label>Observações</label>
         <textarea id="observacao" placeholder="..." style="width:100%; height:80px; box-sizing: border-box;"></textarea>
@@ -196,7 +218,7 @@
     <div class="form-row"><input type="text" id="buscaHistorico" placeholder="🔍 Filtrar histórico..." onkeyup="filtrarTabela()" style="width:100%"></div>
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Data</th><th>Ativo</th><th>Tipo</th><th>Estrategia</th><th>Resultado</th><th>Obs</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Data</th><th>Ativo</th><th>Tipo</th><th>Estrategia</th><th>Resultado</th><th>Pontos</th><th>Obs</th><th>Ações</th></tr></thead>
             <tbody id="tabela"></tbody>
         </table>
     </div>
@@ -230,9 +252,6 @@ function switchTab(id, btn) {
     btn.classList.add('active');
 }
 
-// ==========================================
-// FUNÇÃO ABERTURA MARKET COM HORÁRIOS SOLICITADOS
-// ==========================================
 async function carregarDadosAbertura() {
     const adrs = ["VALE", "PBR", "ITUB", "BBD", "BBAS3", "BSBR", "EWZ"];
     const commodities = ["BZ=F", "CL=F", "GC=F"];
@@ -265,7 +284,6 @@ async function carregarDadosAbertura() {
 
                 const horaAtual = new Date().getHours();
                 
-                // Lógica de Turnos Específica
                 if (horaAtual >= 6 && horaAtual < 10) {
                     if (res.extendedMarketChangePercent !== undefined && res.extendedMarketChangePercent !== null) {
                         pct = res.extendedMarketChangePercent;
@@ -327,10 +345,6 @@ async function carregarDadosAbertura() {
     document.getElementById('loading').style.display = 'none';
 }
 
-// ==========================================
-// FUNÇÕES DE BANCO DE DADOS (MANTIDAS ORIGINAIS)
-// ==========================================
-
 function atualizarDashboard(){
     const fOps = aplicarFiltros();
     const tbody = document.getElementById('tabela');
@@ -338,11 +352,14 @@ function atualizarDashboard(){
 
     let total=0, wins=0, capital=0, pico=0, ddMax=0;
     let winT=0, wdoT=0, bitT=0;
+    let ptsWinT=0, ptsWdoT=0, ptsBitT=0; 
     let gains=[], losses=[], seqW=0, seqL=0, maxW=0, maxL=0;
     let capArray=[], estStats={};
 
     fOps.forEach((op) => {
         const res = paraNumero(op.resultado);
+        const pts = paraNumero(op.pontos); 
+        
         total += res; capital += res; capArray.push(capital);
         if(capital > pico) pico = capital;
         let dd = pico - capital; if(dd > ddMax) ddMax = dd;
@@ -350,14 +367,17 @@ function atualizarDashboard(){
         if(res > 0){ wins++; gains.push(res); seqW++; seqL=0; if(seqW > maxW) maxW = seqW; } 
         else if(res < 0){ losses.push(Math.abs(res)); seqL++; seqW=0; if(seqL > maxL) maxL = seqL; }
         
-        if(op.ativo==="WIN") winT+=res; if(op.ativo==="WDO") wdoT+=res; if(op.ativo==="BITFUT") bitT+=res;
+        if(op.ativo==="WIN") { winT+=res; ptsWinT+=pts; }
+        if(op.ativo==="WDO") { wdoT+=res; ptsWdoT+=pts; }
+        if(op.ativo==="BITFUT") { bitT+=res; ptsBitT+=pts; }
 
         let est = op.estrategia || "Sem Nome";
         if(!estStats[est]) estStats[est] = { total:0, qtd:0, wins:0, sumG:0, sumL:0 };
         estStats[est].total += res; estStats[est].qtd++;
         if(res > 0){ estStats[est].wins++; estStats[est].sumG += res; } else { estStats[est].sumL += Math.abs(res); }
 
-        tbody.innerHTML += `<tr><td>${op.data}</td><td>${op.ativo}</td><td>${op.tipo || '-'}</td><td>${op.estrategia}</td><td class="${res>=0?'positivo':'negativo'}">${formatarReal(res)}</td><td>${op.observacao||'-'}</td><td><button class="btn-edit" onclick="prepararEdicao(${op.idRow})"><i class="fas fa-edit"></i></button><button class="btn-del" onclick="deletarOperacao(${op.idRow})"><i class="fas fa-trash"></i></button></td></tr>`;
+        // ALINHADO COM A TABELA: COLUNA DE PONTOS EXIBIDA ANTES DA OBSERVAÇÃO
+        tbody.innerHTML += `<tr><td>${op.data}</td><td>${op.ativo}</td><td>${op.tipo || '-'}</td><td>${op.estrategia}</td><td class="${res>=0?'positivo':'negativo'}">${formatarReal(res)}</td><td>${pts.toLocaleString('pt-BR')} pts</td><td>${op.observacao||'-'}</td><td><button class="btn-edit" onclick="prepararEdicao(${op.idRow})"><i class="fas fa-edit"></i></button><button class="btn-del" onclick="deletarOperacao(${op.idRow})"><i class="fas fa-trash"></i></button></td></tr>`;
     });
 
     const totalGains = gains.reduce((a, b) => a + b, 0);
@@ -379,6 +399,13 @@ function atualizarDashboard(){
     document.getElementById('seqWin').innerText = maxW;
     document.getElementById('seqLoss').innerText = maxL;
     document.getElementById('totalOps').innerText = fOps.length;
+
+    document.getElementById('ptsWin').innerText = ptsWinT.toLocaleString('pt-BR') + ' pts';
+    document.getElementById('ptsWdo').innerText = ptsWdoT.toLocaleString('pt-BR') + ' pts';
+    document.getElementById('ptsBit').innerText = ptsBitT.toLocaleString('pt-BR') + ' pts';
+    
+    const totalGeralPontos = ptsWinT + ptsWdoT + ptsBitT;
+    document.getElementById('ptsTotalGeral').innerText = totalGeralPontos.toLocaleString('pt-BR') + ' pts';
 
     let perc = metaMensal > 0 ? (total / metaMensal) * 100 : 0;
     document.getElementById('metaBarFill').style.width = Math.min(Math.max(perc, 0), 100) + "%";
@@ -439,6 +466,7 @@ function prepararEdicao(idRow) {
     document.getElementById('estrategia').value = op.estrategia;
     document.getElementById('emocao').value = op.emocao || "tranquilo";
     document.getElementById('resultado').value = op.resultado;
+    document.getElementById('pontos').value = op.pontos || ""; 
     document.getElementById('observacao').value = op.observacao;
     document.getElementById('tituloForm').innerHTML = `<i class="fas fa-edit"></i> Editando Trade (Linha ${idRow})`;
     document.getElementById('btnSalvar').innerText = "ATUALIZAR";
@@ -451,7 +479,7 @@ function cancelarEdicao() {
     document.getElementById('tituloForm').innerHTML = `<i class="fas fa-plus-circle"></i> Registrar Operação`;
     document.getElementById('btnSalvar').innerText = "SALVAR";
     document.getElementById('btnCancelarEdit').style.display = "none";
-    document.getElementById('data').value = ""; document.getElementById('resultado').value = ""; document.getElementById('observacao').value = "";
+    document.getElementById('data').value = ""; document.getElementById('resultado').value = ""; document.getElementById('pontos').value = ""; document.getElementById('observacao').value = "";
 }
 
 async function deletarOperacao(idRow) {
@@ -467,7 +495,9 @@ async function salvarOperacao() {
         tipoRegistro: idRow ? "editar" : "operacao", idRow: idRow || null,
         data: document.getElementById('data').value, ativo: document.getElementById('ativo').value,
         tipo: document.getElementById('tipo').value, estrategia: document.getElementById('estrategia').value,
-        emocao: document.getElementById('emocao').value, resultado: Number(document.getElementById('resultado').value),
+        emocao: document.getElementById('emocao').value, 
+        resultado: Number(document.getElementById('resultado').value),
+        pontos: Number(document.getElementById('pontos').value), 
         observacao: document.getElementById('observacao').value
     };
     if(!payload.data || isNaN(payload.resultado)) return alert("Preencha data e resultado!");
@@ -486,7 +516,9 @@ async function carregarOperacoes() {
             return { 
                 idRow: i + 2, 
                 data: `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`, 
-                ativo: l[1], tipo: l[2], estrategia: l[3], emocao: l[4], resultado: Number(l[5]), observacao: l[6] 
+                ativo: l[1], tipo: l[2], estrategia: l[3], emocao: l[4], resultado: Number(l[5]),
+                pontos: Number(l[6]), // AJUSTADO: Índice 6 para os Pontos (7ª Coluna)
+                observacao: l[7]     // AJUSTADO: Índice 7 para a Observação (8ª Coluna)
             };
         });
         atualizarDashboard();
