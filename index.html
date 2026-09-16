@@ -36,6 +36,7 @@
         button { background: var(--primary); border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; font-weight: bold; color: white; font-size: 11px; }
         .btn-edit { background: var(--secondary); margin-right: 4px; padding: 4px 8px; }
         .btn-del { background: var(--danger); padding: 4px 8px; }
+        .btn-clear { background: var(--danger); padding: 8px 12px; font-weight: bold; }
 
         .table-wrap { overflow-x: auto; max-height: 450px; border-radius: 8px; border: 1px solid #334155; }
         table { width: 100%; border-collapse: collapse; font-size: 11px; background: var(--bg-card); }
@@ -106,8 +107,9 @@
             <option value="">Todos Ativos</option>
             <option value="WIN">WIN</option><option value="WDO">WDO</option><option value="BITFUT">BITFUT</option>
         </select>
-        <button onclick="limparFiltros()" style="background:var(--secondary)">Limpar</button>
-        <button onclick="filtrarHoje()" style="background:var(--primary)">Hoje</button>
+        <button onclick="limparFiltros()" style="background:var(--secondary)"><i class="fas fa-filter"></i> Limpar Filtros</button>
+        <button onclick="filtrarHoje()" style="background:var(--primary)"><i class="fas fa-calendar-day"></i> Hoje</button>
+        <button onclick="limparTodosTrades()" class="btn-clear"><i class="fas fa-eraser"></i> Limpar Tudo</button>
     </div>
 
     <div class="cards">
@@ -376,7 +378,6 @@ function atualizarDashboard(){
         estStats[est].total += res; estStats[est].qtd++;
         if(res > 0){ estStats[est].wins++; estStats[est].sumG += res; } else { estStats[est].sumL += Math.abs(res); }
 
-        // ALINHADO COM A TABELA: COLUNA DE PONTOS EXIBIDA ANTES DA OBSERVAÇÃO
         tbody.innerHTML += `<tr><td>${op.data}</td><td>${op.ativo}</td><td>${op.tipo || '-'}</td><td>${op.estrategia}</td><td class="${res>=0?'positivo':'negativo'}">${formatarReal(res)}</td><td>${pts.toLocaleString('pt-BR')} pts</td><td>${op.observacao||'-'}</td><td><button class="btn-edit" onclick="prepararEdicao(${op.idRow})"><i class="fas fa-edit"></i></button><button class="btn-del" onclick="deletarOperacao(${op.idRow})"><i class="fas fa-trash"></i></button></td></tr>`;
     });
 
@@ -489,6 +490,24 @@ async function deletarOperacao(idRow) {
     setTimeout(carregarOperacoes, 1500);
 }
 
+// NOVA FUNÇÃO: LIMPAR TODOS OS TRADES COM CONFIRMAÇÃO
+async function limparTodosTrades() {
+    const c1 = confirm("⚠️ ATENÇÃO: Deseja apagar TODOS os registros de trades?");
+    if (!c1) return;
+
+    const c2 = confirm("Tem certeza absoluta? Essa ação não pode ser desfeita.");
+    if (!c2) return;
+
+    document.getElementById('loading').style.display = 'block';
+    await fetch(API_URL, { 
+        method: "POST", 
+        mode: "no-cors", 
+        body: JSON.stringify({ tipoRegistro: "limparTudo" })
+    });
+
+    setTimeout(carregarOperacoes, 2000);
+}
+
 async function salvarOperacao() {
     const idRow = document.getElementById('editIndex').value;
     const payload = {
@@ -517,8 +536,8 @@ async function carregarOperacoes() {
                 idRow: i + 2, 
                 data: `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`, 
                 ativo: l[1], tipo: l[2], estrategia: l[3], emocao: l[4], resultado: Number(l[5]),
-                pontos: Number(l[6]), // AJUSTADO: Índice 6 para os Pontos (7ª Coluna)
-                observacao: l[7]     // AJUSTADO: Índice 7 para a Observação (8ª Coluna)
+                pontos: Number(l[6]),
+                observacao: l[7]
             };
         });
         atualizarDashboard();
